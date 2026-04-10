@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -17,8 +17,8 @@
 
   <!-- ==================== SPLASH SCREEN ==================== -->
   <div id="splash-screen"
-    style="position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;">
-    <img src="OPTITRAK.gif" alt="OptiTrak" style="max-width:80vw;max-height:80vh;">
+    style="position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;">
+    <img src="OPTITRAK.gif" alt="OptiTrak" style="max-width:60vw;max-height:60vh;border-radius:24px;">
   </div>
   <script>
     setTimeout(function () {
@@ -33,8 +33,8 @@
   <div id="login-screen" class="login-wrapper">
     <div class="login-card rainbow-border">
       <div class="login-icon"><img src="OPTITRAK.jpg" alt="OptiTrak Logo"
-          style="width:80px;height:80px;border-radius:50%;" /></div>
-      <h1 class="rainbow-text">OptiTrak</h1>
+          style="width:80px;height:80px;border-radius:50%;border:3px solid #FFFC00;" /></div>
+      <h1 style="font-size:32px;font-weight:700;letter-spacing:-0.5px;">OptiTrak</h1>
       <p class="subtitle">Enter your credentials to access the shop dashboard.</p>
       <form id="login-form" style="display:flex;flex-direction:column;gap:1rem;text-align:left;">
         <div class="form-group">
@@ -45,7 +45,7 @@
           <label>Password</label>
           <input id="login-password" type="password" required class="form-input uppercase" placeholder="PASSWORD" />
         </div>
-        <button type="submit" class="btn-primary" style="margin-top:0.5rem;">
+        <button type="submit" class="btn-primary" style="margin-top:0.75rem;">
           &#x1F511; Sign In
         </button>
       </form>
@@ -58,8 +58,8 @@
     <header class="no-print">
       <div class="header-inner">
         <div class="logo">
-          <img src="OPTITRAK.jpg" alt="OptiTrak Logo" style="width:36px;height:36px;border-radius:50%;" />
-          <span class="logo-text rainbow-text">OptiTrak</span>
+          <img src="OPTITRAK.jpg" alt="OptiTrak Logo" style="width:36px;height:36px;border-radius:50%;border:2px solid #FFFC00;" />
+          <span class="logo-text">OptiTrak</span>
         </div>
         <nav>
           <button class="nav-btn active" data-view="dashboard" onclick="switchView('dashboard')">
@@ -335,7 +335,7 @@
     var unsubRemakes = null;
 
     var REASONS = ['DR RX CHANGE', 'FRAME TOO BIG/SMALL', 'SEG HT/PD/OC HT ISSUE', 'LENS DESIGN CHANGE', 'LAB ERROR', 'OTHER'];
-    var COLORS = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#8B00FF'];
+    var COLORS = ['#0FADFF', '#FFB300', '#E5395E', '#00E676', '#9B30FF', '#FFFC00', '#FF6600'];
 
     // ==================== Init ====================
     document.addEventListener('DOMContentLoaded', function () {
