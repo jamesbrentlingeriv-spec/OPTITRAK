@@ -15,6 +15,20 @@
 
 <body>
 
+  <!-- ==================== SPLASH SCREEN ==================== -->
+  <div id="splash-screen"
+    style="position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;">
+    <img src="OPTITRAK.gif" alt="OptiTrak" style="max-width:80vw;max-height:80vh;">
+  </div>
+  <script>
+    setTimeout(function () {
+      var splash = document.getElementById('splash-screen');
+      splash.style.transition = 'opacity 0.4s';
+      splash.style.opacity = '0';
+      setTimeout(function () { splash.remove(); }, 400);
+    }, 3000);
+  </script>
+
   <!-- ==================== LOGIN SCREEN ==================== -->
   <div id="login-screen" class="login-wrapper">
     <div class="login-card rainbow-border">
@@ -667,25 +681,25 @@
       document.getElementById('optician-fields').classList.toggle('hidden', !showOpticians);
       document.getElementById('lab-type-field').classList.toggle('hidden', !isLabError);
       document.getElementById('doctor-name-field').classList.toggle('hidden', !isDrChange);
-      document.getElementById('f-employee-remake').required = showOpticians;    function handleLogin(e) {
-      e.preventDefault();
-      var username = document.getElementById('login-username').value.toUpperCase();
-      var password = document.getElementById('login-password').value.toUpperCase();
+      document.getElementById('f-employee-remake').required = showOpticians; function handleLogin(e) {
+        e.preventDefault();
+        var username = document.getElementById('login-username').value.toUpperCase();
+        var password = document.getElementById('login-password').value.toUpperCase();
 
-      if (username === 'LINDA' && password === 'GILLIAM') {
-        currentUser = { username: 'LINDA', role: 'admin' };
-      } else if (username === 'LAB' && password === 'LAB') {
-        currentUser = { username: 'LAB', role: 'lab' };
-      } else if (username === 'JAMES' && password === '1945390167') {
-        currentUser = { username: 'JAMES', role: 'user' };
-      } else {
-        alert('Invalid username or password');
-        return;
+        if (username === 'LINDA' && password === 'GILLIAM') {
+          currentUser = { username: 'LINDA', role: 'admin' };
+        } else if (username === 'LAB' && password === 'LAB') {
+          currentUser = { username: 'LAB', role: 'lab' };
+        } else if (username === 'JAMES' && password === '1945390167') {
+          currentUser = { username: 'JAMES', role: 'user' };
+        } else {
+          alert('Invalid username or password');
+          return;
+        }
+        localStorage.setItem('opti_user', JSON.stringify(currentUser));
+        showApp();
       }
-      localStorage.setItem('opti_user', JSON.stringify(currentUser));
-      showApp();
-    }
-// ... existing code ...
+      // ... existing code ...
       document.getElementById('f-employee-original').required = showOpticians;
     }
 
