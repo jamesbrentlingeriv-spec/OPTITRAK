@@ -71,9 +71,18 @@
       <div id="view-dashboard" class="view active space-y-8">
         <div class="dashboard-header no-print">
           <h2>Remake Dashboard</h2>
-          <button class="nav-btn active" onclick="window.print()" style="font-size:0.875rem;">
-            &#x1F5A8;&#xFE0F; Print Report
-          </button>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <select id="print-range" class="form-input" onchange="renderPrintReport()"
+              style="width:auto;padding:0.4rem 0.6rem;font-size:0.875rem;">
+              <option value="weekly">WEEKLY</option>
+              <option value="monthly">MONTHLY</option>
+              <option value="yearly">YEARLY</option>
+              <option value="all">ALL TIME</option>
+            </select>
+            <button class="nav-btn active" onclick="window.print()" style="font-size:0.875rem;">
+              &#x1F5A8;&#xFE0F; Print Report
+            </button>
+          </div>
         </div>
 
         <!-- Stats Cards -->
@@ -187,6 +196,10 @@
                       <input type="radio" name="lab-type" value="OUTSIDE LAB" /> OUTSIDE LAB
                     </label>
                   </div>
+                </div>
+                <div id="doctor-name-field" class="form-group hidden">
+                  <label>Doctor's Name</label>
+                  <input id="f-doctor-name" type="text" class="form-input" placeholder="Enter doctor's name" />
                 </div>
                 <div class="form-group">
                   <label>Remake Date</label>
@@ -576,23 +589,57 @@
     }
 
     // ==================== Print Report ====================
+    function getDateRangeCutoff(range) {
+      var now = new Date();
+      if (range === 'weekly') {
+        now.setDate(now.getDate() - 7);
+      } else if (range === 'monthly') {
+        now.setMonth(now.getMonth() - 1);
+      } else if (range === 'yearly') {
+        now.setFullYear(now.getFullYear() - 1);
+      } else {
+        return null;
+      }
+      return now;
+    }
+
+    function getRangeLabel(range) {
+      if (range === 'weekly') return 'WEEKLY';
+      if (range === 'monthly') return 'MONTHLY';
+      if (range === 'yearly') return 'YEARLY';
+      return 'ALL TIME';
+    }
+
     function renderPrintReport() {
+      var rangeEl = document.getElementById('print-range');
+      var range = rangeEl ? rangeEl.value : 'all';
+      var cutoff = getDateRangeCutoff(range);
+
       var sorted = remakes.slice().sort(function (a, b) {
         return new Date(b.dateRemake) - new Date(a.dateRemake);
       });
 
-      var html = '';
-      sorted.forEach(function (r) {
-        html += '<div class="print-report-item">' +
-          '<div><strong>Customer:</strong> ' + escapeHtml(r.customerName) + '</div>' +
-          '<div><strong>Reason:</strong> ' + escapeHtml(r.reason) + '</div>' +
-          '<div><strong>Remake By:</strong> ' + escapeHtml(r.employeeRemake) + '</div>' +
-          '<div><strong>Original By:</strong> ' + escapeHtml(r.employeeOriginal) + '</div>' +
-          '<div><strong>Date:</strong> ' + formatDateSlash(r.dateRemake) + '</div>' +
-          '<div><strong>Tier:</strong> ' + r.remakeCount + '</div>' +
-          '</div>';
-      });
+      if (cutoff) {
+        sorted = sorted.filter(function (r) {
+          return new Date(r.dateRemake) >= cutoff;
+        });
+      }
 
+      var html = '<h2 class="print-report-title" style="text-align:center;margin-bottom:1rem;">' + getRangeLabel(range) + ' REMAKE REPORT</h2>';
+      if (sorted.length === 0) {
+        html += '<p style="text-align:center;padding:2rem 0;">No remakes found for this period.</p>';
+      } else {
+        sorted.forEach(function (r) {
+          html += '<div class="print-report-item">' +
+            '<div><strong>Customer:</strong> ' + escapeHtml(r.customerName) + '</div>' +
+            '<div><strong>Reason:</strong> ' + escapeHtml(r.reason) + '</div>' +
+            '<div><strong>Remake By:</strong> ' + escapeHtml(r.employeeRemake || r.doctorName || r.labType || '') + '</div>' +
+            '<div><strong>Original By:</strong> ' + escapeHtml(r.employeeOriginal || '') + '</div>' +
+            '<div><strong>Date:</strong> ' + formatDateSlash(r.dateRemake) + '</div>' +
+            '<div><strong>Tier:</strong> ' + r.remakeCount + '</div>' +
+            '</div>';
+        });
+      }
       document.getElementById('print-report').innerHTML = html;
     }
 
@@ -613,11 +660,13 @@
     function handleReasonChange() {
       var reason = document.getElementById('f-reason').value;
       var isLabError = reason === 'LAB ERROR';
-      document.getElementById('optician-fields').classList.toggle('hidden', isLabError);
+      var isDrChange = reason === 'DR RX CHANGE';
+      var showOpticians = !isLabError && !isDrChange;
+      document.getElementById('optician-fields').classList.toggle('hidden', !showOpticians);
       document.getElementById('lab-type-field').classList.toggle('hidden', !isLabError);
-      // Remove required from hidden optician selects so form validation works
-      document.getElementById('f-employee-remake').required = !isLabError;
-      document.getElementById('f-employee-original').required = !isLabError;
+      document.getElementById('doctor-name-field').classList.toggle('hidden', !isDrChange);
+      document.getElementById('f-employee-remake').required = showOpticians;
+      document.getElementById('f-employee-original').required = showOpticians;
     }
 
     function handleAddRemake(e) {
@@ -627,16 +676,22 @@
       var customerName = document.getElementById('f-customer').value.trim();
       var reason = document.getElementById('f-reason').value;
       var isLabError = reason === 'LAB ERROR';
-      var employeeRemake = isLabError ? '' : document.getElementById('f-employee-remake').value;
-      var employeeOriginal = isLabError ? '' : document.getElementById('f-employee-original').value;
+      var isDrChange = reason === 'DR RX CHANGE';
+      var employeeRemake = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-remake').value;
+      var employeeOriginal = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-original').value;
       var labType = isLabError ? document.querySelector('input[name="lab-type"]:checked').value : '';
+      var doctorName = isDrChange ? document.getElementById('f-doctor-name').value.trim() : '';
       var dateRemake = document.getElementById('f-date-remake').value;
       var dateOriginal = document.getElementById('f-date-original').value;
       var labNotes = document.getElementById('f-lab-notes').value.trim();
       var managerAck = document.getElementById('f-manager-ack').checked;
 
-      if (!customerName || (!isLabError && (!employeeRemake || !employeeOriginal))) {
+      if (!customerName || (!(isLabError || isDrChange) && (!employeeRemake || !employeeOriginal))) {
         alert('Please fill in all required fields');
+        return;
+      }
+      if (isDrChange && !doctorName) {
+        alert('Please enter the doctor\'s name');
         return;
       }
       if (remakeCount === 3 && !managerAck) {
@@ -650,6 +705,7 @@
         employeeRemake: employeeRemake,
         employeeOriginal: employeeOriginal,
         labType: labType,
+        doctorName: doctorName,
         dateRemake: dateRemake,
         dateOriginal: dateOriginal,
         labNotes: labNotes,
