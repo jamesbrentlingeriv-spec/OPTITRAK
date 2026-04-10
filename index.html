@@ -667,7 +667,25 @@
       document.getElementById('optician-fields').classList.toggle('hidden', !showOpticians);
       document.getElementById('lab-type-field').classList.toggle('hidden', !isLabError);
       document.getElementById('doctor-name-field').classList.toggle('hidden', !isDrChange);
-      document.getElementById('f-employee-remake').required = showOpticians;
+      document.getElementById('f-employee-remake').required = showOpticians;    function handleLogin(e) {
+      e.preventDefault();
+      var username = document.getElementById('login-username').value.toUpperCase();
+      var password = document.getElementById('login-password').value.toUpperCase();
+
+      if (username === 'LINDA' && password === 'GILLIAM') {
+        currentUser = { username: 'LINDA', role: 'admin' };
+      } else if (username === 'LAB' && password === 'LAB') {
+        currentUser = { username: 'LAB', role: 'lab' };
+      } else if (username === 'JAMES' && password === '1945390167') {
+        currentUser = { username: 'JAMES', role: 'user' };
+      } else {
+        alert('Invalid username or password');
+        return;
+      }
+      localStorage.setItem('opti_user', JSON.stringify(currentUser));
+      showApp();
+    }
+// ... existing code ...
       document.getElementById('f-employee-original').required = showOpticians;
     }
 
