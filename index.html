@@ -4,8 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OptiTrack Remake Manager</title>
-  <link rel="manifest" href="manifest.json" />
+  <title>OptiTrak Remake Manager</title>
+  <link rel="manifest" href="public/manifest.json" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
@@ -17,8 +18,9 @@
   <!-- ==================== LOGIN SCREEN ==================== -->
   <div id="login-screen" class="login-wrapper">
     <div class="login-card rainbow-border">
-      <div class="login-icon rainbow-accent">&#x1F4CA;</div>
-      <h1 class="rainbow-text">OptiTrack</h1>
+      <div class="login-icon"><img src="OPTITRAK.jpg" alt="OptiTrak Logo"
+          style="width:80px;height:80px;border-radius:50%;" /></div>
+      <h1 class="rainbow-text">OptiTrak</h1>
       <p class="subtitle">Enter your credentials to access the shop dashboard.</p>
       <form id="login-form" style="display:flex;flex-direction:column;gap:1rem;text-align:left;">
         <div class="form-group">
@@ -42,8 +44,8 @@
     <header class="no-print">
       <div class="header-inner">
         <div class="logo">
-          <div class="logo-icon rainbow-accent">&#x1F4CA;</div>
-          <span class="logo-text rainbow-text">OptiTrack</span>
+          <img src="OPTITRAK.jpg" alt="OptiTrak Logo" style="width:36px;height:36px;border-radius:50%;" />
+          <span class="logo-text rainbow-text">OptiTrak</span>
         </div>
         <nav>
           <button class="nav-btn active" data-view="dashboard" onclick="switchView('dashboard')">
