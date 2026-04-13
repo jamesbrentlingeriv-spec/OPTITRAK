@@ -52,8 +52,13 @@
     </div>
   </div>
 
+  <!-- ==================== PRINT-ONLY REPORT ==================== -->
+  <div id="print-wrapper" class="print-only" style="display:none;">
+    <div id="print-report"></div>
+  </div>
+
   <!-- ==================== APP SHELL ==================== -->
-  <div id="app-shell" class="hidden">
+  <div id="app-shell" class="hidden no-print">
     <!-- Header -->
     <header class="no-print">
       <div class="header-inner">
@@ -161,8 +166,7 @@
             </select>
           </div>
         </div>
-        <!-- Print report (hidden on screen) -->
-        <div id="print-report" class="print-only"></div>
+        <!-- Print report (now only in print-only wrapper) -->
         <!-- Normal list -->
         <div id="history-list" class="no-print space-y-6"></div>
       </div>
@@ -302,6 +306,9 @@
     </footer>
   </div>
 
+  <!-- Detail Modal -->
+  <div id="detail-overlay" class="detail-overlay" onclick="if(event.target===this)closeDetail()"></div>
+
 
 
   <!-- ===== Firebase SDK (compat) ===== -->
@@ -351,11 +358,8 @@
       }
 
       // Restore user
-      var savedUser = localStorage.getItem('opti_user');
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showApp();
-      }
+      // Clear any saved session on page load — require fresh login
+      localStorage.removeItem('opti_user');
 
       // Set default dates
       var today = new Date().toISOString().split('T')[0];
@@ -577,11 +581,12 @@
 
       var html = '';
       filtered.forEach(function (r) {
+        var badgeText = r.remakeCount === 1 ? '1st' : r.remakeCount === 2 ? '2nd' : '3rd';
         var badgeClass = r.remakeCount === 1 ? '' : r.remakeCount === 2 ? ' second' : ' third';
         var coachedHtml = r.coachedOptician
           ? '<span class="coached-tag">&#x2705; Coached</span>' : '';
 
-        html += '<div class="remake-card rainbow-border"><div class="remake-card-inner">' +
+        html += '<div class="remake-card rainbow-border" onclick="showRemakeDetail(\'' + r.id + '\')"><div class="remake-card-inner">' +
           '<div class="space-y-4" style="flex:1;">' +
           '<div class="remake-header">' +
           '<h3>' + escapeHtml(r.customerName) + '</h3>' +
@@ -598,7 +603,7 @@
           (r.labNotes ? '<div class="lab-notes-box"><p class="note-label">Lab Notes</p><p class="note-text">' + escapeHtml(r.labNotes) + '</p></div>' : '') +
           '</div>' +
           '<div class="delete-col no-print">' +
-          '<button class="delete-btn" onclick="handleDeleteRemake(\'' + r.id + '\')" title="Delete">&#x1F5D1;&#xFE0F;</button>' +
+          '<button class="delete-btn" onclick="event.stopPropagation();handleDeleteRemake(\'' + r.id + '\')" title="Delete">&#x1F5D1;&#xFE0F;</button>' +
           '</div>' +
           '</div></div>';
       });
@@ -642,21 +647,16 @@
         });
       }
 
-      var html = '<h2 class="print-report-title" style="text-align:center;margin-bottom:1rem;">' + getRangeLabel(range) + ' REMAKE REPORT</h2>';
-      if (sorted.length === 0) {
-        html += '<p style="text-align:center;padding:2rem 0;">No remakes found for this period.</p>';
-      } else {
-        sorted.forEach(function (r) {
-          html += '<div class="print-report-item">' +
-            '<div><strong>Customer:</strong> ' + escapeHtml(r.customerName) + '</div>' +
-            '<div><strong>Reason:</strong> ' + escapeHtml(r.reason) + '</div>' +
-            '<div><strong>Remake By:</strong> ' + escapeHtml(r.employeeRemake || r.doctorName || r.labType || '') + '</div>' +
-            '<div><strong>Original By:</strong> ' + escapeHtml(r.employeeOriginal || '') + '</div>' +
-            '<div><strong>Date:</strong> ' + formatDateSlash(r.dateRemake) + '</div>' +
-            '<div><strong>Tier:</strong> ' + r.remakeCount + '</div>' +
-            '</div>';
-        });
-      }
+      var html = '';
+      html += '<ul style="list-style:none;padding:0;margin:0;">';
+      sorted.forEach(function (r) {
+        html += '<li style="padding:4px 0;font-size:14px;color:#000;">'
+          + escapeHtml(r.customerName)
+          + ' &mdash; ' + escapeHtml(r.employeeRemake || r.doctorName || r.labType || '')
+          + ' &mdash; ' + escapeHtml(r.reason)
+          + '</li>';
+      });
+      html += '</ul>';
       document.getElementById('print-report').innerHTML = html;
     }
 
@@ -682,25 +682,7 @@
       document.getElementById('optician-fields').classList.toggle('hidden', !showOpticians);
       document.getElementById('lab-type-field').classList.toggle('hidden', !isLabError);
       document.getElementById('doctor-name-field').classList.toggle('hidden', !isDrChange);
-      document.getElementById('f-employee-remake').required = showOpticians; function handleLogin(e) {
-        e.preventDefault();
-        var username = document.getElementById('login-username').value.toUpperCase();
-        var password = document.getElementById('login-password').value.toUpperCase();
-
-        if (username === 'LINDA' && password === 'GILLIAM') {
-          currentUser = { username: 'LINDA', role: 'admin' };
-        } else if (username === 'LAB' && password === 'LAB') {
-          currentUser = { username: 'LAB', role: 'lab' };
-        } else if (username === 'JAMES' && password === '1945390167') {
-          currentUser = { username: 'JAMES', role: 'user' };
-        } else {
-          alert('Invalid username or password');
-          return;
-        }
-        localStorage.setItem('opti_user', JSON.stringify(currentUser));
-        showApp();
-      }
-      // ... existing code ...
+      document.getElementById('f-employee-remake').required = showOpticians;
       document.getElementById('f-employee-original').required = showOpticians;
     }
 
@@ -749,21 +731,30 @@
         managerAck: managerAck,
         uid: currentUser.username,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(function () {
-        document.getElementById('add-remake-form').reset();
-        var today = new Date().toISOString().split('T')[0];
-        document.getElementById('f-date-remake').value = today;
-        document.getElementById('f-date-original').value = today;
-        document.getElementById('f-reason').value = 'OTHER';
-        handleReasonChange();
-        setRemakeCount(1);
-        coachedOptician = false;
-        document.getElementById('coached-track').classList.remove('on');
-        switchView('history');
       }).catch(function (err) {
         console.error('Error adding remake:', err);
-        alert('Failed to save remake. Please check your connection.');
+        showToast('Failed to save. Check connection.');
       });
+
+      // Reset form immediately — don't wait for server
+      document.getElementById('add-remake-form').reset();
+      var today = new Date().toISOString().split('T')[0];
+      document.getElementById('f-date-remake').value = today;
+      document.getElementById('f-date-original').value = today;
+      document.getElementById('f-reason').value = 'OTHER';
+      document.getElementById('f-customer').value = '';
+      document.getElementById('f-lab-notes').value = '';
+      document.getElementById('f-doctor-name').value = '';
+      document.getElementById('f-manager-ack').checked = false;
+      document.querySelector('input[name="lab-type"][value="HOUSE LAB"]').checked = true;
+      document.getElementById('f-employee-remake').selectedIndex = 0;
+      document.getElementById('f-employee-original').selectedIndex = 0;
+      handleReasonChange();
+      setRemakeCount(1);
+      coachedOptician = false;
+      document.getElementById('coached-track').classList.remove('on');
+      document.getElementById('manager-ack-section').classList.add('hidden');
+      showToast('Remake saved!');
     }
 
     function handleDeleteRemake(id) {
@@ -832,6 +823,77 @@
     }
 
 
+
+    // ==================== Remake Detail Modal ====================
+    function showRemakeDetail(id) {
+      var r = remakes.filter(function (rm) { return rm.id === id; })[0];
+      if (!r) return;
+
+      var now = new Date();
+      var weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+      var monthAgo = new Date(now); monthAgo.setMonth(monthAgo.getMonth() - 1);
+      var custName = r.customerName.toLowerCase();
+
+      var weekCount = 0;
+      var monthCount = 0;
+      remakes.forEach(function (rm) {
+        if (rm.customerName.toLowerCase() !== custName) return;
+        var d = rm.dateRemake ? new Date(rm.dateRemake + 'T00:00:00') : (rm.createdAt ? rm.createdAt.toDate() : null);
+        if (!d) return;
+        if (d >= weekAgo) weekCount++;
+        if (d >= monthAgo) monthCount++;
+      });
+
+      var badgeText = r.remakeCount === 1 ? '1st' : r.remakeCount === 2 ? '2nd' : '3rd';
+      var badgeClass = r.remakeCount === 1 ? '' : r.remakeCount === 2 ? ' second' : ' third';
+
+      var html = '<div class="detail-modal">' +
+        '<button class="detail-close" onclick="closeDetail()">&times;</button>' +
+        '<div class="detail-title">' + escapeHtml(r.customerName) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">' +
+        '<span class="remake-badge' + badgeClass + '">' + badgeText + ' Remake</span>' +
+        (r.coachedOptician ? '<span class="coached-tag">&#x2705; Coached</span>' : '') +
+        '</div>' +
+        '<div class="detail-stats">' +
+        '<div class="detail-stat"><div class="stat-num">' + weekCount + '</div><div class="stat-lbl">This Week</div></div>' +
+        '<div class="detail-stat"><div class="stat-num">' + monthCount + '</div><div class="stat-lbl">This Month</div></div>' +
+        '<div class="detail-stat"><div class="stat-num">' + r.remakeCount + '</div><div class="stat-lbl">Remake #</div></div>' +
+        '</div>' +
+        '<div class="detail-grid">' +
+        '<div class="detail-field"><p class="d-label">Reason</p><p class="d-value">' + escapeHtml(r.reason) + '</p></div>' +
+        '<div class="detail-field"><p class="d-label">Submitted By</p><p class="d-value">' + escapeHtml(r.uid || '') + '</p></div>' +
+        '<div class="detail-field"><p class="d-label">Remake Optician</p><p class="d-value">' + escapeHtml(r.employeeRemake || 'N/A') + '</p></div>' +
+        '<div class="detail-field"><p class="d-label">Original Optician</p><p class="d-value">' + escapeHtml(r.employeeOriginal || 'N/A') + '</p></div>' +
+        '<div class="detail-field"><p class="d-label">Remake Date</p><p class="d-value">' + formatDateLong(r.dateRemake) + '</p></div>' +
+        '<div class="detail-field"><p class="d-label">Original Date</p><p class="d-value">' + formatDateLong(r.dateOriginal) + '</p></div>' +
+        (r.labType ? '<div class="detail-field"><p class="d-label">Lab Type</p><p class="d-value">' + escapeHtml(r.labType) + '</p></div>' : '') +
+        (r.doctorName ? '<div class="detail-field"><p class="d-label">Doctor</p><p class="d-value">' + escapeHtml(r.doctorName) + '</p></div>' : '') +
+        (r.managerAck ? '<div class="detail-field"><p class="d-label">Manager</p><p class="d-value">&#x2705; Acknowledged</p></div>' : '') +
+        '</div>' +
+        (r.labNotes ? '<div class="detail-notes"><p class="d-label">Lab Notes</p><p class="d-value">' + escapeHtml(r.labNotes) + '</p></div>' : '') +
+        '</div>';
+
+      var overlay = document.getElementById('detail-overlay');
+      overlay.innerHTML = html;
+      overlay.classList.add('open');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-overlay').classList.remove('open');
+    }
+
+    // ==================== Toast ====================
+    function showToast(msg) {
+      var t = document.createElement('div');
+      t.textContent = msg;
+      t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#00C853;color:#fff;padding:0.75rem 1.5rem;border-radius:12px;font-weight:600;font-size:15px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);opacity:0;transition:opacity 0.3s;';
+      document.body.appendChild(t);
+      requestAnimationFrame(function () { t.style.opacity = '1'; });
+      setTimeout(function () {
+        t.style.opacity = '0';
+        setTimeout(function () { t.remove(); }, 300);
+      }, 2000);
+    }
 
     // ==================== Helpers ====================
     function escapeHtml(str) {
