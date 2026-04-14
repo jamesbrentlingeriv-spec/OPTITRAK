@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🕶️ OptiTrak Remake Manager
+> A high-performance, sleek dashboard for tracking optical laboratory remakes and shop performance.
 
-# Run and deploy your AI Studio app
+[![Version](https://img.shields.io/badge/version-1.0.0-FFFC00.svg?style=for-the-badge&logo=appveyor)]()
+[![Status](https://img.shields.io/badge/Status-Production--Ready-00FF00.svg?style=for-the-badge)]()
+[![Interface](https://img.shields.io/badge/UI-Modern--Glassmorphism-blue.svg?style=for-the-badge)]()
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/50f06571-b108-4380-bf95-bf887edc61f1
+## ✨ Overview
 
-## Run Locally
+**OptiTrak** is a specialized laboratory management tool designed to streamline the tracking of job "remakes." Built with a focus on speed, aesthetics, and data clarity, it transforms messy shop floor data into actionable insights through high-fidelity charts and automated reporting.
 
-**Prerequisites:**  Node.js
+### 💎 Key Features
 
+* **⚡ Cinematic Experience:** Includes a high-impact animated splash screen and smooth UI transitions.
+* **📊 Insightful Dashboard:** Real-time stats on total remakes, "3rd-time" recurrences, and coaching rates.
+* **🌓 Adaptive UI:** Fully integrated Dark and Light modes with a custom "Rainbow Border" accent.
+* **🖨️ Pro-Grade Reporting:** Specialized print-only CSS wrappers for generating weekly, monthly, or yearly physical reports.
+* **📱 PWA Ready:** Mobile-first architecture with manifest support for installation on any device.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | HTML5, Modern CSS3 (Flexbox/Grid) |
+| **Typography** | [DM Sans](https://fonts.google.com/specimen/DM+Sans) via Google Fonts |
+| **Icons** | Custom Unicode & Dynamic SVG Glyphs |
+| **Visuals** | GIF/JPG Integrated Branding |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+You only need a modern web browser (Chrome, Edge, or Safari recommended).
+
+### 2. Installation
+Clone the repository and launch the `index.html`:
+```bash
+git clone [https://github.com/your-repo/optitrak.git](https://github.com/your-repo/optitrak.git)
+cd optitrak
+open index.html
