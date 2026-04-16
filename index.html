@@ -632,44 +632,68 @@
     }
 
     function handleAddRemake(e) {
-      e.preventDefault();
-      if (!currentUser) return;
+  e.preventDefault();
+  if (!currentUser) return;
 
-      var customerName = document.getElementById('f-customer').value.trim();
-      var reason = document.getElementById('f-reason').value;
-      var isLabError = reason === 'LAB ERROR';
-      var isDrChange = reason === 'DR RX CHANGE';
-      var employeeRemake = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-remake').value;
-      var employeeOriginal = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-original').value;
-      var labType = isLabError ? document.querySelector('input[name="lab-type"]:checked').value : '';
-      var doctorName = isDrChange ? document.getElementById('f-doctor-name').value.trim() : '';
-      var dateRemake = document.getElementById('f-date-remake').value;
-      var dateOriginal = document.getElementById('f-date-original').value;
-      var labNotes = document.getElementById('f-lab-notes').value.trim();
-      var managerAck = document.getElementById('f-manager-ack').checked;
+  var customerName = document.getElementById('f-customer').value.trim();
+  var reason = document.getElementById('f-reason').value;
+  var isLabError = reason === 'LAB ERROR';
+  var isDrChange = reason === 'DR RX CHANGE';
+  var employeeRemake = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-remake').value;
+  var employeeOriginal = (isLabError || isDrChange) ? '' : document.getElementById('f-employee-original').value;
+  var labType = isLabError ? document.querySelector('input[name="lab-type"]:checked').value : '';
+  var doctorName = isDrChange ? document.getElementById('f-doctor-name').value.trim() : '';
+  var dateRemake = document.getElementById('f-date-remake').value;
+  var dateOriginal = document.getElementById('f-date-original').value;
+  var labNotes = document.getElementById('f-lab-notes').value.trim();
+  var managerAck = document.getElementById('f-manager-ack').checked;
 
-      db.collection('remakes').add({
-        customerName: customerName,
-        reason: reason,
-        employeeRemake: employeeRemake,
-        employeeOriginal: employeeOriginal,
-        labType: labType,
-        doctorName: doctorName,
-        dateRemake: dateRemake,
-        dateOriginal: dateOriginal,
-        labNotes: labNotes,
-        remakeCount: remakeCount,
-        coachedOptician: coachedOptician,
-        managerAck: managerAck,
-        uid: currentUser.username,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(function(){
-        showToast('Remake saved!');
-        document.getElementById('add-remake-form').reset();
-        switchView('dashboard');
-      });
-    }
-
+  // Add to Firebase
+  db.collection('remakes').add({
+    customerName: customerName,
+    reason: reason,
+    employeeRemake: employeeRemake,
+    employeeOriginal: employeeOriginal,
+    labType: labType,
+    doctorName: doctorName,
+    dateRemake: dateRemake,
+    dateOriginal: dateOriginal,
+    labNotes: labNotes,
+    remakeCount: remakeCount,
+    coachedOptician: coachedOptician,
+    managerAck: managerAck,
+    uid: currentUser.username,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('Remake saved!');
+    
+    // --- FULL FORM RESET ---
+    document.getElementById('add-remake-form').reset();
+    
+    // Reset Custom Variables
+    remakeCount = 1;
+    coachedOptician = false;
+    
+    // Reset UI Toggles/Buttons
+    setRemakeCount(1);
+    document.getElementById('coached-track').classList.remove('on');
+    document.getElementById('manager-ack-section').classList.add('hidden');
+    
+    // Refresh the visibility of fields (hides Lab/Doctor fields if "Other" is selected)
+    handleReasonChange();
+    
+    // Set dates back to today
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('f-date-remake').value = today;
+    document.getElementById('f-date-original').value = today;
+    
+    // Go back to dashboard to see the new entry
+    switchView('dashboard');
+  }).catch(function(error) {
+    console.error("Error adding document: ", error);
+    alert("Error saving remake. Please check your connection.");
+  });
+}
     function handleDeleteRemake(id) {
       if (confirm('Delete this record?')) {
         db.collection('remakes').doc(id).delete();
