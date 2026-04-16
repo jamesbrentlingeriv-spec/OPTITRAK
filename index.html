@@ -633,20 +633,36 @@
     }
 
     function renderPrintReport() {
-      var rangeEl = document.getElementById('print-range');
-      var range = rangeEl ? rangeEl.value : 'all';
-      var cutoff = getDateRangeCutoff(range);
+  var rangeEl = document.getElementById('print-range');
+  var range = rangeEl ? rangeEl.value : 'all';
+  var cutoff = getDateRangeCutoff(range);
 
-      var sorted = remakes.slice().sort(function (a, b) {
-        return new Date(b.dateRemake) - new Date(a.dateRemake);
-      });
+  var sorted = remakes.slice().sort(function (a, b) {
+    return new Date(b.dateRemake) - new Date(a.dateRemake);
+  });
 
-      if (cutoff) {
-        sorted = sorted.filter(function (r) {
-          return new Date(r.dateRemake) >= cutoff;
-        });
-      }
+  if (cutoff) {
+    sorted = sorted.filter(function (r) {
+      return new Date(r.dateRemake) >= cutoff;
+    });
+  }
 
+  var html = '';
+  html += '<ul style="list-style:none;padding:0;margin:0;">';
+  sorted.forEach(function (r) {
+    // Determine what to display if it's not a standard optician remake
+    var secondaryInfo = r.employeeRemake || r.doctorName || r.labType || 'N/A';
+    
+    html += '<li style="padding:6px 0; border-bottom: 1px solid #eee; font-size:14px; color:#000;">'
+      + '<strong>' + escapeHtml(r.customerName) + '</strong>'
+      + ' | <span style="color:#555;">Optician:</span> ' + escapeHtml(secondaryInfo)
+      + ' | <span style="color:#555;">Reason:</span> ' + escapeHtml(r.reason)
+      + ' | <span style="color:#555;">Date:</span> ' + formatDateShort(r.dateRemake)
+      + '</li>';
+  });
+  html += '</ul>';
+  document.getElementById('print-report').innerHTML = html;
+}
       var html = '';
       html += '<ul style="list-style:none;padding:0;margin:0;">';
       sorted.forEach(function (r) {
