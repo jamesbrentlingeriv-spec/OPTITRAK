@@ -240,7 +240,7 @@
 
               <div class="form-group">
                 <label>Lab Notes</label>
-                <textarea id="f-lab-notes" class="form-input" placeholder="Enter feedback or lab notes..."></textarea>
+                <textarea id="f-lab-notes" class="form-input" placeholder="Enter feedback or notes from the lab..."></textarea>
               </div>
 
               <button type="submit" class="btn-primary rainbow">Submit Remake Record</button>
@@ -254,14 +254,15 @@
           <div class="card-3xl rainbow-border settings-card">
             <h2>&#x1F465; Manage Opticians</h2>
             <div class="tech-input-row">
-              <input id="new-tech-name" type="text" class="form-input" placeholder="Enter name..." onkeypress="if(event.key==='Enter'){handleAddTech();}"/>
+              <input id="new-tech-name" type="text" class="form-input" placeholder="Enter optician name..."
+                onkeypress="if(event.key==='Enter'){handleAddTech();}" />
               <button onclick="handleAddTech()">Add</button>
             </div>
             <div id="tech-list" class="space-y-2"></div>
           </div>
           <div class="card-3xl rainbow-border export-card">
             <h2>Export Data</h2>
-            <p>Download all remake records as a JSON file for backup.</p>
+            <p class="export-desc">Download all remake records as a JSON file for backup or external analysis.</p>
             <button class="btn-outline" onclick="handleExport()">Download JSON Export</button>
           </div>
         </div>
@@ -285,19 +286,33 @@
       projectId: "gen-lang-client-0723670219",
       appId: "1:840075680860:web:255c72d84f67466cd6da99",
       apiKey: "AIzaSyByHNNovL3ed7W3fbYA0LcDKRiTb3KPwKw",
-      authDomain: "gen-lang-client-0723670219.firebaseapp.com"
+      authDomain: "gen-lang-client-0723670219.firebaseapp.com",
+      storageBucket: "gen-lang-client-0723670219.firebasestorage.app",
+      messagingSenderId: "840075680860"
     };
 
     firebase.initializeApp(firebaseConfig);
-    var auth = firebase.auth(), db = firebase.firestore();
-    db.enablePersistence().catch(err => console.error("Persistence failed", err.code));
+    var auth = firebase.auth();
+    var db = firebase.firestore();
+    
+    // Enable Offline Persistence
+    db.enablePersistence().catch(function(err) {
+        if (err.code == 'failed-precondition') console.log("Persistence failed: multiple tabs open");
+        else if (err.code == 'unimplemented') console.log("Persistence is not supported");
+    });
 
-    // ==================== Global State ====================
-    var currentUser = null, remakes = [], technicians = [], currentView = 'dashboard';
-    var isDarkMode = false, remakeCount = 1, coachedOptician = false;
+    // ==================== State ====================
+    var currentUser = null;
+    var remakes = [];
+    var technicians = [];
+    var currentView = 'dashboard';
+    var isDarkMode = false;
+    var remakeCount = 1;
+    var coachedOptician = false;
+    var unsubRemakes = null;
     var COLORS = ['#0FADFF', '#FFB300', '#E5395E', '#00E676', '#9B30FF', '#FFFC00', '#FF6600'];
 
-    // ==================== Initialize ====================
+    // ==================== Init ====================
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('footer-year').textContent = new Date().getFullYear();
 
@@ -308,7 +323,7 @@
         document.getElementById('theme-toggle').innerHTML = '&#x2600;&#xFE0F;';
       }
 
-      // Session Check
+      // Restore session
       var savedUser = localStorage.getItem('opti_user');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -328,7 +343,7 @@
         }
       }, 2500);
 
-      // Defaults
+      // Default dates
       var today = new Date().toISOString().split('T')[0];
       document.getElementById('f-date-remake').value = today;
       document.getElementById('f-date-original').value = today;
@@ -340,18 +355,25 @@
     // ==================== Auth ====================
     function handleLogin(e) {
       e.preventDefault();
-      var u = document.getElementById('login-username').value.toUpperCase();
-      var p = document.getElementById('login-password').value.toUpperCase();
-      if ((u === 'LINDA' && p === 'GILLIAM') || (u === 'LAB' && p === 'LAB')) {
-        currentUser = { username: u };
+      var username = document.getElementById('login-username').value.toUpperCase();
+      var password = document.getElementById('login-password').value.toUpperCase();
+
+      if ((username === 'LINDA' && password === 'GILLIAM') || (username === 'LAB' && password === 'LAB')) {
+        currentUser = { username: username };
         localStorage.setItem('opti_user', JSON.stringify(currentUser));
         showApp();
-      } else { alert('Invalid Login'); }
+      } else {
+        alert('Invalid credentials');
+      }
     }
 
     function handleLogout() {
+      currentUser = null;
       localStorage.removeItem('opti_user');
-      location.reload();
+      if (unsubRemakes) unsubRemakes();
+      document.getElementById('app-shell').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('active');
+      document.getElementById('login-screen').classList.remove('hidden');
     }
 
     function showApp() {
@@ -362,10 +384,10 @@
       switchView('dashboard');
     }
 
-    // ==================== Data Sync ====================
+    // ==================== Sync ====================
     function startSync() {
-      db.collection('remakes').orderBy('createdAt', 'desc').onSnapshot(snap => {
-        remakes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      unsubRemakes = db.collection('remakes').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
+        remakes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         renderDashboard();
         renderHistory();
         renderPrintReport();
@@ -374,18 +396,25 @@
     }
 
     function loadTechnicians() {
-      var local = localStorage.getItem('opti_technicians_added');
-      technicians = local ? JSON.parse(local) : [];
-      renderTechList();
-      populateOpticianSelects();
+      fetch('technicians.json').then(res => res.json()).then(names => {
+        var fromJSON = names.map((n, i) => ({ id: 'json-' + i, name: n.toUpperCase() }));
+        var fromLocal = JSON.parse(localStorage.getItem('opti_technicians_added') || '[]');
+        technicians = [...fromJSON, ...fromLocal];
+        renderTechList();
+        populateOpticianSelects();
+      }).catch(err => {
+        technicians = JSON.parse(localStorage.getItem('opti_technicians_added') || '[]');
+        renderTechList();
+        populateOpticianSelects();
+      });
     }
 
-    // ==================== Dashboard Logic ====================
+    // ==================== UI Rendering ====================
     function renderDashboard() {
       document.getElementById('stat-total').textContent = remakes.length;
       document.getElementById('stat-3rd').textContent = remakes.filter(r => r.remakeCount === 3).length;
       var coached = remakes.filter(r => r.coachedOptician).length;
-      document.getElementById('stat-coaching').textContent = remakes.length > 0 ? Math.round((coached/remakes.length)*100)+'%' : '0%';
+      document.getElementById('stat-coaching').textContent = remakes.length > 0 ? Math.round((coached / remakes.length) * 100) + '%' : '0%';
 
       var html = '';
       remakes.slice(0, 5).forEach(r => {
@@ -394,20 +423,42 @@
                 `<p class="item-meta">${escapeHtml(r.reason)} • ${formatDateShort(r.dateRemake)}</p></div>` +
                 `<span class="remake-badge ${badge}">${r.remakeCount}st</span></div>`;
       });
-      document.getElementById('latest-remakes').innerHTML = html || '<p>No remakes found</p>';
+      document.getElementById('latest-remakes').innerHTML = html || '<p>No remakes recorded</p>';
       drawPieChart();
     }
 
-    // ==================== Print Logic (FIXED) ====================
+    function renderHistory() {
+      var query = document.getElementById('search-input').value.toLowerCase();
+      var filter = document.getElementById('reason-filter').value;
+      var filtered = remakes.filter(r => {
+        var matchSearch = r.customerName.toLowerCase().includes(query) || (r.employeeOriginal || "").toLowerCase().includes(query);
+        var matchReason = filter === 'all' || r.reason === filter;
+        return matchSearch && matchReason;
+      });
+
+      document.getElementById('history-list').innerHTML = filtered.map(r => `
+        <div class="remake-card rainbow-border" onclick="showRemakeDetail('${r.id}')">
+          <div class="remake-card-inner">
+            <div style="flex:1">
+              <h3>${escapeHtml(r.customerName)} <span class="remake-badge ${r.remakeCount === 3 ? 'third' : (r.remakeCount === 2 ? 'second' : '')}">${r.remakeCount}st</span></h3>
+              <p class="field-label">Original Optician</p><p class="field-value">${escapeHtml(r.employeeOriginal || r.doctorName || 'N/A')}</p>
+              <p class="field-label">Reason</p><p class="field-value">${escapeHtml(r.reason)}</p>
+            </div>
+            <button class="delete-btn" onclick="event.stopPropagation(); handleDeleteRemake('${r.id}')">🗑️</button>
+          </div>
+        </div>`).join('');
+    }
+
+    // ==================== Print (FIXED: SHOW ORIGINAL) ====================
     function renderPrintReport() {
       var range = document.getElementById('print-range').value;
       var cutoff = getDateRangeCutoff(range);
       var sorted = remakes.slice().sort((a,b) => new Date(b.dateRemake) - new Date(a.dateRemake));
       if(cutoff) sorted = sorted.filter(r => new Date(r.dateRemake) >= cutoff);
 
-      var html = `<h2>REMAKE REPORT - ${range.toUpperCase()}</h2><ul style="list-style:none;padding:0;">`;
+      var html = `<h2>REMAKE REPORT - ${range.toUpperCase()}</h2><ul style="list-style:none;padding:0;margin:0;">`;
       sorted.forEach(r => {
-        // FIX: Displaying ORIGINAL Optician as requested
+        // SWAPPED TO ORIGINAL OPTICIAN AS REQUESTED
         var displayPerson = r.employeeOriginal || r.doctorName || r.labType || 'N/A';
         html += `<li style="padding:8px 0; border-bottom:1px solid #000; color:#000; font-size:14px;">` +
                 `<strong>${escapeHtml(r.customerName)}</strong> | ` +
@@ -418,7 +469,7 @@
       document.getElementById('print-report').innerHTML = html + '</ul>';
     }
 
-    // ==================== Add Remake Logic (FIXED RESET) ====================
+    // ==================== Actions (FIXED: RESET FORM) ====================
     async function handleAddRemake(e) {
       e.preventDefault();
       var data = {
@@ -439,9 +490,9 @@
 
       try {
         await db.collection('remakes').add(data);
-        showToast('Record Saved!');
+        showToast('Remake Saved!');
         
-        // FORCED RESET
+        // --- COMPLETE FORM RESET ---
         document.getElementById('add-remake-form').reset();
         remakeCount = 1; coachedOptician = false;
         setRemakeCount(1);
@@ -453,16 +504,12 @@
         document.getElementById('f-date-original').value = today;
         
         switchView('dashboard');
-      } catch (err) { alert('Save Failed'); }
+      } catch (err) { alert('Failed to save'); }
     }
 
-    // ==================== Helpers ====================
-    function switchView(v) {
-      document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
-      document.getElementById('view-'+v).classList.add('active');
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-    }
-
+    function setRemakeCount(n) { remakeCount = n; document.querySelectorAll('.count-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.count)===n)); }
+    function toggleCoached() { coachedOptician = !coachedOptician; document.getElementById('coached-track').classList.toggle('on', coachedOptician); }
+    
     function handleReasonChange() {
       var r = document.getElementById('f-reason').value;
       document.getElementById('optician-fields').classList.toggle('hidden', r==='LAB ERROR' || r==='DR RX CHANGE');
@@ -470,86 +517,73 @@
       document.getElementById('lab-type-field').classList.toggle('hidden', r!=='LAB ERROR');
     }
 
-    function setRemakeCount(n) { remakeCount = n; document.querySelectorAll('.count-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.count)===n)); }
-    function toggleCoached() { coachedOptician = !coachedOptician; document.getElementById('coached-track').classList.toggle('on', coachedOptician); }
+    function switchView(v) {
+      document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+      document.getElementById('view-'+v).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+    }
 
     function handleAddTech() {
       var n = document.getElementById('new-tech-name').value.toUpperCase().trim();
       if(!n) return;
-      technicians.push({id: Date.now(), name: n});
-      localStorage.setItem('opti_technicians_added', JSON.stringify(technicians));
+      var current = JSON.parse(localStorage.getItem('opti_technicians_added') || '[]');
+      current.push({id: 'local-'+Date.now(), name: n});
+      localStorage.setItem('opti_technicians_added', JSON.stringify(current));
       loadTechnicians();
       document.getElementById('new-tech-name').value = '';
     }
 
     function renderTechList() {
-      document.getElementById('tech-list').innerHTML = technicians.map(t => `<div class="tech-item"><span>${t.name}</span><button onclick="deleteTech(${t.id})">🗑️</button></div>`).join('');
+      document.getElementById('tech-list').innerHTML = technicians.map(t => `<div class="tech-item"><span>${t.name}</span><button onclick="deleteTech('${t.id}')">🗑️</button></div>`).join('');
     }
 
-    function deleteTech(id) { technicians = technicians.filter(t => t.id !== id); localStorage.setItem('opti_technicians_added', JSON.stringify(technicians)); loadTechnicians(); }
+    function deleteTech(id) {
+      var current = JSON.parse(localStorage.getItem('opti_technicians_added') || '[]');
+      current = current.filter(t => t.id !== id);
+      localStorage.setItem('opti_technicians_added', JSON.stringify(current));
+      loadTechnicians();
+    }
 
     function populateOpticianSelects() {
-      var opts = '<option value="">Select Optician</option>' + technicians.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
-      document.getElementById('f-employee-remake').innerHTML = opts;
-      document.getElementById('f-employee-original').innerHTML = opts;
+      var h = '<option value="">Select Optician</option>' + technicians.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+      document.getElementById('f-employee-remake').innerHTML = h;
+      document.getElementById('f-employee-original').innerHTML = h;
     }
 
-    function renderHistory() {
-      var q = document.getElementById('search-input').value.toLowerCase();
-      var rF = document.getElementById('reason-filter').value;
-      var filtered = remakes.filter(r => (r.customerName.toLowerCase().includes(q) || (r.employeeOriginal||"").toLowerCase().includes(q)) && (rF==='all' || r.reason === rF));
-      
-      document.getElementById('history-list').innerHTML = filtered.map(r => `
-        <div class="remake-card rainbow-border" onclick="showRemakeDetail('${r.id}')">
-          <div class="remake-card-inner">
-            <div style="flex:1">
-              <h3>${escapeHtml(r.customerName)} <span class="remake-badge">${r.remakeCount}</span></h3>
-              <p>Original: ${escapeHtml(r.employeeOriginal || r.doctorName || 'N/A')}</p>
-              <p>Reason: ${escapeHtml(r.reason)}</p>
-            </div>
-            <button class="delete-btn" onclick="event.stopPropagation(); deleteRemake('${r.id}')">🗑️</button>
-          </div>
-        </div>
-      `).join('');
+    // Modal, Pie Chart, Toast, and Helpers...
+    function showRemakeDetail(id) {
+        var r = remakes.find(x => x.id === id); if(!r) return;
+        var html = `<div class="detail-modal"><button class="detail-close" onclick="closeDetail()">&times;</button>` +
+                   `<div class="detail-title">${escapeHtml(r.customerName)}</div>` +
+                   `<div class="detail-grid"><div class="detail-field"><p class="d-label">Reason</p><p class="d-value">${r.reason}</p></div>` +
+                   `<div class="detail-field"><p class="d-label">Original</p><p class="d-value">${r.employeeOriginal || r.doctorName || 'N/A'}</p></div></div>` +
+                   `<div class="detail-notes"><p class="d-label">Notes</p><p class="d-value">${r.labNotes || 'None'}</p></div></div>`;
+        document.getElementById('detail-overlay').innerHTML = html;
+        document.getElementById('detail-overlay').classList.add('open');
     }
-
-    function deleteRemake(id) { if(confirm('Delete?')) db.collection('remakes').doc(id).delete(); }
-
-    function drawPieChart() {
-      var canvas = document.getElementById('pie-chart'); if(!canvas) return;
-      var ctx = canvas.getContext('2d'), w = 220, h = 220, cx = 110, cy = 110;
-      ctx.clearRect(0,0,w,h);
-      var counts = [1,2,3].map(n => remakes.filter(r => r.remakeCount === n).length);
-      var total = counts.reduce((a,b) => a+b, 0);
-      if(total === 0) return;
-      var start = -Math.PI/2;
-      counts.forEach((v, i) => {
-        var slice = (v/total) * Math.PI * 2;
-        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy, 100, start, start+slice); ctx.fillStyle = COLORS[i]; ctx.fill();
-        start += slice;
-      });
-    }
-
-    function getDateRangeCutoff(range) {
-      var d = new Date();
-      if(range==='weekly') d.setDate(d.getDate()-7);
-      else if(range==='monthly') d.setMonth(d.getMonth()-1);
-      else if(range==='yearly') d.setFullYear(d.getFullYear()-1);
-      else return null;
-      return d;
-    }
-
+    function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
     function showToast(m) { 
-      var t = document.createElement('div'); t.textContent = m; 
-      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00C853;color:#fff;padding:10px 20px;border-radius:8px;z-index:100000;';
-      document.body.appendChild(t); setTimeout(() => t.remove(), 2000);
+        var t = document.createElement('div'); t.textContent = m; t.className = 'toast-msg';
+        t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00C853;color:#fff;padding:10px 20px;border-radius:10px;z-index:99999;';
+        document.body.appendChild(t); setTimeout(() => t.remove(), 2000);
     }
-
+    function drawPieChart() {
+        var canvas = document.getElementById('pie-chart'); if(!canvas) return;
+        var ctx = canvas.getContext('2d'), counts = [1,2,3].map(n => remakes.filter(r => r.remakeCount === n).length), total = counts.reduce((a,b)=>a+b,0);
+        if(total === 0) return;
+        var start = -Math.PI/2;
+        counts.forEach((v,i) => {
+            var slice = (v/total) * Math.PI*2; ctx.beginPath(); ctx.moveTo(110,110); ctx.arc(110,110,100,start,start+slice); ctx.fillStyle = COLORS[i]; ctx.fill(); start += slice;
+        });
+    }
+    function getDateRangeCutoff(range) {
+        var d = new Date(); if(range==='weekly') d.setDate(d.getDate()-7); else if(range==='monthly') d.setMonth(d.getMonth()-1); else if(range==='yearly') d.setFullYear(d.getFullYear()-1); else return null; return d;
+    }
     function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     function formatDateShort(s) { if(!s) return ''; var d = new Date(s+'T00:00:00'); return (d.getMonth()+1)+'/'+d.getDate(); }
-    function showRemakeDetail(id) { /* Detail Modal logic same as before */ }
-    function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
     function toggleTheme() { isDarkMode = !isDarkMode; document.documentElement.classList.toggle('dark', isDarkMode); localStorage.setItem('opti_theme', isDarkMode?'dark':'light'); document.getElementById('theme-toggle').innerHTML = isDarkMode?'☀️':'🌙'; drawPieChart(); }
+    function handleDeleteRemake(id) { if(confirm('Delete this record?')) db.collection('remakes').doc(id).delete(); }
+    function handleExport() { var blob = new Blob([JSON.stringify(remakes,null,2)], {type:'application/json'}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'optitrack-export.json'; a.click(); }
   </script>
 </body>
 </html>
