@@ -15,21 +15,11 @@
 
 <body>
 
-  <!-- ==================== SPLASH SCREEN ==================== -->
   <div id="splash-screen"
     style="position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;">
     <img src="OPTITRAK.gif" alt="OptiTrak" style="max-width:60vw;max-height:60vh;border-radius:24px;">
   </div>
-  <script>
-    setTimeout(function () {
-      var splash = document.getElementById('splash-screen');
-      splash.style.transition = 'opacity 0.4s';
-      splash.style.opacity = '0';
-      setTimeout(function () { splash.remove(); }, 400);
-    }, 3000);
-  </script>
 
-  <!-- ==================== LOGIN SCREEN ==================== -->
   <div id="login-screen" class="login-wrapper">
     <div class="login-card rainbow-border">
       <div class="login-icon"><img src="OPTITRAK.jpg" alt="OptiTrak Logo"
@@ -52,14 +42,11 @@
     </div>
   </div>
 
-  <!-- ==================== PRINT-ONLY REPORT ==================== -->
   <div id="print-wrapper" class="print-only" style="display:none;">
     <div id="print-report"></div>
   </div>
 
-  <!-- ==================== APP SHELL ==================== -->
   <div id="app-shell" class="hidden no-print">
-    <!-- Header -->
     <header class="no-print">
       <div class="header-inner">
         <div class="logo">
@@ -89,7 +76,6 @@
     </header>
 
     <main>
-      <!-- ===== DASHBOARD ===== -->
       <div id="view-dashboard" class="view active space-y-8">
         <div class="dashboard-header no-print">
           <h2>Remake Dashboard</h2>
@@ -99,7 +85,7 @@
               <option value="weekly">WEEKLY</option>
               <option value="monthly">MONTHLY</option>
               <option value="yearly">YEARLY</option>
-              <option value="all">ALL TIME</option>
+              <option value="all" selected>ALL TIME</option>
             </select>
             <button class="nav-btn active" onclick="window.print()" style="font-size:0.875rem;">
               &#x1F5A8;&#xFE0F; Print Report
@@ -107,7 +93,6 @@
           </div>
         </div>
 
-        <!-- Stats Cards -->
         <div class="grid-3">
           <div class="card rainbow-border stat-card">
             <p class="stat-label">Total Remakes</p>
@@ -123,9 +108,7 @@
           </div>
         </div>
 
-        <!-- Charts Row -->
         <div class="grid-2">
-          <!-- Latest Remakes -->
           <div class="card rainbow-border" style="display:flex;flex-direction:column;">
             <div class="section-title section-title-flex">
               <span>Latest Remakes</span>
@@ -133,7 +116,6 @@
             </div>
             <div id="latest-remakes" class="custom-scrollbar space-y-4" style="flex:1;"></div>
           </div>
-          <!-- Pie Chart -->
           <div class="card rainbow-border">
             <h3 class="section-title">Remake Frequency</h3>
             <div class="chart-container">
@@ -144,7 +126,6 @@
         </div>
       </div>
 
-      <!-- ===== HISTORY ===== -->
       <div id="view-history" class="view space-y-6">
         <div class="history-header no-print">
           <h2>Remake History</h2>
@@ -166,12 +147,9 @@
             </select>
           </div>
         </div>
-        <!-- Print report (now only in print-only wrapper) -->
-        <!-- Normal list -->
         <div id="history-list" class="no-print space-y-6"></div>
       </div>
 
-      <!-- ===== ADD REMAKE ===== -->
       <div id="view-add" class="view">
         <div class="add-form-wrapper">
           <div class="add-form-card rainbow-border card-3xl">
@@ -279,7 +257,6 @@
         </div>
       </div>
 
-      <!-- ===== SETTINGS ===== -->
       <div id="view-settings" class="view">
         <div class="settings-wrapper space-y-8">
           <div class="card-3xl rainbow-border settings-card">
@@ -294,7 +271,7 @@
 
           <div class="card-3xl rainbow-border export-card">
             <h2>Export Data</h2>
-            <p class="export-desc">Download all remake records as a JSON file for backup or external analysis.</p>
+            <p class="export-desc">Download all remake records as a JSON file for backup.</p>
             <button class="btn-outline" onclick="handleExport()">Download JSON Export</button>
           </div>
         </div>
@@ -306,12 +283,8 @@
     </footer>
   </div>
 
-  <!-- Detail Modal -->
   <div id="detail-overlay" class="detail-overlay" onclick="if(event.target===this)closeDetail()"></div>
 
-
-
-  <!-- ===== Firebase SDK (compat) ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -339,10 +312,7 @@
     var isDarkMode = false;
     var remakeCount = 1;
     var coachedOptician = false;
-
     var unsubRemakes = null;
-
-    var REASONS = ['DR RX CHANGE', 'FRAME TOO BIG/SMALL', 'SEG HT/PD/OC HT ISSUE', 'LENS DESIGN CHANGE', 'LAB ERROR', 'OTHER'];
     var COLORS = ['#0FADFF', '#FFB300', '#E5395E', '#00E676', '#9B30FF', '#FFFC00', '#FF6600'];
 
     // ==================== Init ====================
@@ -357,9 +327,26 @@
         document.getElementById('theme-toggle').innerHTML = '&#x2600;&#xFE0F;';
       }
 
-      // Restore user
-      // Clear any saved session on page load — require fresh login
-      localStorage.removeItem('opti_user');
+      // Check for saved user session
+      var savedUser = localStorage.getItem('opti_user');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        showApp();
+      }
+
+      // Handle Splash Timeout
+      setTimeout(function () {
+        var splash = document.getElementById('splash-screen');
+        if (splash) {
+          splash.style.transition = 'opacity 0.4s';
+          splash.style.opacity = '0';
+          setTimeout(function () { 
+            splash.remove(); 
+            // Only show login if no user is already active
+            if(!currentUser) document.getElementById('login-screen').classList.remove('hidden');
+          }, 400);
+        }
+      }, 2500);
 
       // Set default dates
       var today = new Date().toISOString().split('T')[0];
@@ -368,10 +355,7 @@
       if (dr) dr.value = today;
       if (dorig) dorig.value = today;
 
-      // Anonymous Firebase auth
       auth.signInAnonymously().catch(function (err) { console.error('Auth error:', err); });
-
-      // Login form
       document.getElementById('login-form').addEventListener('submit', handleLogin);
     });
 
@@ -410,7 +394,6 @@
 
     // ==================== Firestore Sync ====================
     function startSync() {
-      // Sync remakes
       unsubRemakes = db.collection('remakes').orderBy('createdAt', 'desc').onSnapshot(function (snapshot) {
         remakes = snapshot.docs.map(function (d) {
           return Object.assign({ id: d.id }, d.data());
@@ -420,7 +403,6 @@
         renderPrintReport();
       }, function (err) { console.error('Remakes sync error:', err); });
 
-      // Load technicians from JSON file + localStorage
       loadTechnicians();
     }
 
@@ -431,18 +413,16 @@
         technicians = names.map(function (name, i) {
           return { id: 'json-' + i, name: name };
         });
-        // Merge any locally-added names
         var extras = localStorage.getItem('opti_technicians_added');
         if (extras) {
           try {
             var added = JSON.parse(extras);
             added.forEach(function (t) { technicians.push(t); });
-          } catch (e) { /* ignore bad data */ }
+          } catch (e) { }
         }
         renderTechList();
         populateOpticianSelects();
       }).catch(function (err) {
-        console.error('Error loading technicians.json:', err);
         technicians = [];
         renderTechList();
         populateOpticianSelects();
@@ -450,7 +430,6 @@
     }
 
     function saveTechnicians() {
-      // Only persist locally-added names (not the ones from JSON)
       var added = technicians.filter(function (t) { return t.id.indexOf('local-') === 0; });
       localStorage.setItem('opti_technicians_added', JSON.stringify(added));
     }
@@ -485,7 +464,7 @@
 
       var container = document.getElementById('latest-remakes');
       if (remakes.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">&#x1F4C3;</div><p>No remakes yet</p></div>';
+        container.innerHTML = '<div class="empty-state"><p>No remakes yet</p></div>';
       } else {
         var html = '';
         remakes.slice(0, 5).forEach(function (r) {
@@ -502,11 +481,10 @@
         });
         container.innerHTML = html;
       }
-
       drawPieChart();
     }
 
-    // ==================== Pie Chart (Canvas) ====================
+    // ==================== Pie Chart ====================
     function drawPieChart() {
       var canvas = document.getElementById('pie-chart');
       if (!canvas) return;
@@ -516,7 +494,6 @@
       var outerR = 100, innerR = 60, pad = 0.05;
 
       ctx.clearRect(0, 0, w, h);
-
       var data = [1, 2, 3].map(function (c) {
         return remakes.filter(function (r) { return r.remakeCount === c; }).length;
       });
@@ -545,15 +522,12 @@
         var slice = (value / total) * Math.PI * 2;
         var s = startAngle + pad;
         var e = startAngle + slice - pad;
-        if (e <= s) e = s + 0.01;
-
         ctx.beginPath();
         ctx.arc(cx, cy, outerR, s, e);
         ctx.arc(cx, cy, innerR, e, s, true);
         ctx.closePath();
         ctx.fillStyle = COLORS[i];
         ctx.fill();
-
         startAngle += slice;
       });
     }
@@ -566,16 +540,14 @@
 
       var filtered = remakes.filter(function (r) {
         var matchSearch = r.customerName.toLowerCase().indexOf(query) !== -1 ||
-          r.employeeRemake.toLowerCase().indexOf(query) !== -1;
-        var matchReason = filter === 'all' || r.reason === filter;
+          (r.employeeRemake || "").toLowerCase().indexOf(query) !== -1;
+        var matchReason = filter === 'all' || r.reason.toLowerCase() === filter;
         return matchSearch && matchReason;
       });
 
       var container = document.getElementById('history-list');
       if (filtered.length === 0) {
-        container.innerHTML = '<div class="text-center rainbow-border" style="padding:5rem 1rem;border-radius:1rem;">' +
-          '<div style="font-size:3rem;opacity:0.2;margin-bottom:1rem;">&#x1F50D;</div>' +
-          '<p class="opacity-60">No remakes found matching your criteria.</p></div>';
+        container.innerHTML = '<p style="text-align:center; padding: 2rem;">No remakes found.</p>';
         return;
       }
 
@@ -583,97 +555,56 @@
       filtered.forEach(function (r) {
         var badgeText = r.remakeCount === 1 ? '1st' : r.remakeCount === 2 ? '2nd' : '3rd';
         var badgeClass = r.remakeCount === 1 ? '' : r.remakeCount === 2 ? ' second' : ' third';
-        var coachedHtml = r.coachedOptician
-          ? '<span class="coached-tag">&#x2705; Coached</span>' : '';
-
         html += '<div class="remake-card rainbow-border" onclick="showRemakeDetail(\'' + r.id + '\')"><div class="remake-card-inner">' +
-          '<div class="space-y-4" style="flex:1;">' +
-          '<div class="remake-header">' +
-          '<h3>' + escapeHtml(r.customerName) + '</h3>' +
-          '<span class="remake-badge' + badgeClass + '">' + badgeText + '</span>' +
-          coachedHtml +
+          '<div style="flex:1;">' +
+          '<h3>' + escapeHtml(r.customerName) + ' <span class="remake-badge' + badgeClass + '">' + badgeText + '</span></h3>' +
+          '<p>Optician: ' + escapeHtml(r.employeeRemake || r.doctorName || r.labType || "N/A") + '</p>' +
+          '<p>Reason: ' + escapeHtml(r.reason) + '</p>' +
           '</div>' +
-          '<div class="remake-grid">' +
-          '<div><p class="field-label">Remake By</p><p class="field-value">' + escapeHtml(r.employeeRemake) + '</p></div>' +
-          '<div><p class="field-label">Original By</p><p class="field-value">' + escapeHtml(r.employeeOriginal) + '</p></div>' +
-          '<div><p class="field-label">Remake Date</p><p class="field-value">' + formatDateLong(r.dateRemake) + '</p></div>' +
-          '<div><p class="field-label">Original Date</p><p class="field-value">' + formatDateLong(r.dateOriginal) + '</p></div>' +
-          '</div>' +
-          '<div class="reason-field"><p class="field-label">Reason</p><p class="field-value capitalize">' + escapeHtml(r.reason) + '</p></div>' +
-          (r.labNotes ? '<div class="lab-notes-box"><p class="note-label">Lab Notes</p><p class="note-text">' + escapeHtml(r.labNotes) + '</p></div>' : '') +
-          '</div>' +
-          '<div class="delete-col no-print">' +
-          '<button class="delete-btn" onclick="event.stopPropagation();handleDeleteRemake(\'' + r.id + '\')" title="Delete">&#x1F5D1;&#xFE0F;</button>' +
-          '</div>' +
+          '<button class="delete-btn" onclick="event.stopPropagation();handleDeleteRemake(\'' + r.id + '\')">&#x1F5D1;</button>' +
           '</div></div>';
       });
       container.innerHTML = html;
     }
 
-    // ==================== Print Report ====================
-    function getDateRangeCutoff(range) {
-      var now = new Date();
-      if (range === 'weekly') {
-        now.setDate(now.getDate() - 7);
-      } else if (range === 'monthly') {
-        now.setMonth(now.getMonth() - 1);
-      } else if (range === 'yearly') {
-        now.setFullYear(now.getFullYear() - 1);
-      } else {
-        return null;
-      }
-      return now;
-    }
-
-    function getRangeLabel(range) {
-      if (range === 'weekly') return 'WEEKLY';
-      if (range === 'monthly') return 'MONTHLY';
-      if (range === 'yearly') return 'YEARLY';
-      return 'ALL TIME';
-    }
-
+    // ==================== Print Report (FIXED) ====================
     function renderPrintReport() {
-  var rangeEl = document.getElementById('print-range');
-  var range = rangeEl ? rangeEl.value : 'all';
-  var cutoff = getDateRangeCutoff(range);
+      var rangeEl = document.getElementById('print-range');
+      var range = rangeEl ? rangeEl.value : 'all';
+      var cutoff = getDateRangeCutoff(range);
 
-  var sorted = remakes.slice().sort(function (a, b) {
-    return new Date(b.dateRemake) - new Date(a.dateRemake);
-  });
+      var sorted = remakes.slice().sort(function (a, b) {
+        return new Date(b.dateRemake) - new Date(a.dateRemake);
+      });
 
-  if (cutoff) {
-    sorted = sorted.filter(function (r) {
-      return new Date(r.dateRemake) >= cutoff;
-    });
-  }
+      if (cutoff) {
+        sorted = sorted.filter(function (r) {
+          return new Date(r.dateRemake) >= cutoff;
+        });
+      }
 
-  var html = '';
-  html += '<ul style="list-style:none;padding:0;margin:0;">';
-  sorted.forEach(function (r) {
-    // Determine what to display if it's not a standard optician remake
-    var secondaryInfo = r.employeeRemake || r.doctorName || r.labType || 'N/A';
-    
-    html += '<li style="padding:6px 0; border-bottom: 1px solid #eee; font-size:14px; color:#000;">'
-      + '<strong>' + escapeHtml(r.customerName) + '</strong>'
-      + ' | <span style="color:#555;">Optician:</span> ' + escapeHtml(secondaryInfo)
-      + ' | <span style="color:#555;">Reason:</span> ' + escapeHtml(r.reason)
-      + ' | <span style="color:#555;">Date:</span> ' + formatDateShort(r.dateRemake)
-      + '</li>';
-  });
-  html += '</ul>';
-  document.getElementById('print-report').innerHTML = html;
-}
-      var html = '';
+      var html = '<h2 style="color:#000;">Remake Report (' + range.toUpperCase() + ')</h2>';
       html += '<ul style="list-style:none;padding:0;margin:0;">';
       sorted.forEach(function (r) {
-        html += '<li style="padding:4px 0;font-size:14px;color:#000;">'
-          + escapeHtml(r.customerName)
-          + ' &mdash; ' + escapeHtml(r.employeeRemake || r.doctorName || r.labType || '')
-          + ' &mdash; ' + escapeHtml(r.reason)
+        var secondaryInfo = r.employeeRemake || r.doctorName || r.labType || 'N/A';
+        html += '<li style="padding:8px 0; border-bottom: 1px solid #ccc; font-size:14px; color:#000;">'
+          + '<strong>' + escapeHtml(r.customerName) + '</strong>'
+          + ' | <span style="color:#444;">Optician:</span> ' + escapeHtml(secondaryInfo)
+          + ' | <span style="color:#444;">Reason:</span> ' + escapeHtml(r.reason)
+          + ' | <span style="color:#444;">Date:</span> ' + formatDateShort(r.dateRemake)
           + '</li>';
       });
       html += '</ul>';
       document.getElementById('print-report').innerHTML = html;
+    }
+
+    function getDateRangeCutoff(range) {
+      var now = new Date();
+      if (range === 'weekly') now.setDate(now.getDate() - 7);
+      else if (range === 'monthly') now.setMonth(now.getMonth() - 1);
+      else if (range === 'yearly') now.setFullYear(now.getFullYear() - 1);
+      else return null;
+      return now;
     }
 
     // ==================== Add Remake ====================
@@ -698,8 +629,6 @@
       document.getElementById('optician-fields').classList.toggle('hidden', !showOpticians);
       document.getElementById('lab-type-field').classList.toggle('hidden', !isLabError);
       document.getElementById('doctor-name-field').classList.toggle('hidden', !isDrChange);
-      document.getElementById('f-employee-remake').required = showOpticians;
-      document.getElementById('f-employee-original').required = showOpticians;
     }
 
     function handleAddRemake(e) {
@@ -719,19 +648,6 @@
       var labNotes = document.getElementById('f-lab-notes').value.trim();
       var managerAck = document.getElementById('f-manager-ack').checked;
 
-      if (!customerName || (!(isLabError || isDrChange) && (!employeeRemake || !employeeOriginal))) {
-        alert('Please fill in all required fields');
-        return;
-      }
-      if (isDrChange && !doctorName) {
-        alert('Please enter the doctor\'s name');
-        return;
-      }
-      if (remakeCount === 3 && !managerAck) {
-        alert('3rd remakes require managerial acknowledgment');
-        return;
-      }
-
       db.collection('remakes').add({
         customerName: customerName,
         reason: reason,
@@ -747,37 +663,16 @@
         managerAck: managerAck,
         uid: currentUser.username,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(function (err) {
-        console.error('Error adding remake:', err);
-        showToast('Failed to save. Check connection.');
+      }).then(function(){
+        showToast('Remake saved!');
+        document.getElementById('add-remake-form').reset();
+        switchView('dashboard');
       });
-
-      // Reset form immediately — don't wait for server
-      document.getElementById('add-remake-form').reset();
-      var today = new Date().toISOString().split('T')[0];
-      document.getElementById('f-date-remake').value = today;
-      document.getElementById('f-date-original').value = today;
-      document.getElementById('f-reason').value = 'OTHER';
-      document.getElementById('f-customer').value = '';
-      document.getElementById('f-lab-notes').value = '';
-      document.getElementById('f-doctor-name').value = '';
-      document.getElementById('f-manager-ack').checked = false;
-      document.querySelector('input[name="lab-type"][value="HOUSE LAB"]').checked = true;
-      document.getElementById('f-employee-remake').selectedIndex = 0;
-      document.getElementById('f-employee-original').selectedIndex = 0;
-      handleReasonChange();
-      setRemakeCount(1);
-      coachedOptician = false;
-      document.getElementById('coached-track').classList.remove('on');
-      document.getElementById('manager-ack-section').classList.add('hidden');
-      showToast('Remake saved!');
     }
 
     function handleDeleteRemake(id) {
-      if (confirm('Are you sure you want to delete this record?')) {
-        db.collection('remakes').doc(id).delete().catch(function (err) {
-          console.error('Error deleting remake:', err);
-        });
+      if (confirm('Delete this record?')) {
+        db.collection('remakes').doc(id).delete();
       }
     }
 
@@ -793,25 +688,18 @@
 
     function renderTechList() {
       var container = document.getElementById('tech-list');
-      if (technicians.length === 0) {
-        container.innerHTML = '<p class="text-center italic opacity-60" style="padding:2rem 0;">No opticians added yet.</p>';
-        return;
-      }
       var html = '';
       technicians.forEach(function (t) {
-        html += '<div class="tech-item">' +
-          '<span class="tech-name">' + escapeHtml(t.name) + '</span>' +
-          '<button class="tech-delete" onclick="handleDeleteTech(\'' + t.id + '\')" title="Delete">&#x1F5D1;&#xFE0F;</button>' +
-          '</div>';
+        html += '<div class="tech-item"><span>' + escapeHtml(t.name) + '</span>' +
+          '<button onclick="handleDeleteTech(\'' + t.id + '\')">&#x1F5D1;</button></div>';
       });
-      container.innerHTML = html;
+      container.innerHTML = html || '<p>No opticians.</p>';
     }
 
     function handleAddTech() {
       var input = document.getElementById('new-tech-name');
       var name = input.value.trim().toUpperCase();
-      if (!name || !currentUser) return;
-
+      if (!name) return;
       technicians.push({ id: 'local-' + Date.now(), name: name });
       saveTechnicians();
       renderTechList();
@@ -832,63 +720,21 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      var today = new Date().toISOString().split('T')[0];
-      a.download = 'optitrack-export-' + today + '.json';
+      a.download = 'optitrack-export.json';
       a.click();
-      URL.revokeObjectURL(url);
     }
 
-
-
-    // ==================== Remake Detail Modal ====================
     function showRemakeDetail(id) {
-      var r = remakes.filter(function (rm) { return rm.id === id; })[0];
+      var r = remakes.find(function (rm) { return rm.id === id; });
       if (!r) return;
-
-      var now = new Date();
-      var weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
-      var monthAgo = new Date(now); monthAgo.setMonth(monthAgo.getMonth() - 1);
-      var custName = r.customerName.toLowerCase();
-
-      var weekCount = 0;
-      var monthCount = 0;
-      remakes.forEach(function (rm) {
-        if (rm.customerName.toLowerCase() !== custName) return;
-        var d = rm.dateRemake ? new Date(rm.dateRemake + 'T00:00:00') : (rm.createdAt ? rm.createdAt.toDate() : null);
-        if (!d) return;
-        if (d >= weekAgo) weekCount++;
-        if (d >= monthAgo) monthCount++;
-      });
-
-      var badgeText = r.remakeCount === 1 ? '1st' : r.remakeCount === 2 ? '2nd' : '3rd';
-      var badgeClass = r.remakeCount === 1 ? '' : r.remakeCount === 2 ? ' second' : ' third';
-
       var html = '<div class="detail-modal">' +
         '<button class="detail-close" onclick="closeDetail()">&times;</button>' +
         '<div class="detail-title">' + escapeHtml(r.customerName) + '</div>' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">' +
-        '<span class="remake-badge' + badgeClass + '">' + badgeText + ' Remake</span>' +
-        (r.coachedOptician ? '<span class="coached-tag">&#x2705; Coached</span>' : '') +
-        '</div>' +
-        '<div class="detail-stats">' +
-        '<div class="detail-stat"><div class="stat-num">' + weekCount + '</div><div class="stat-lbl">This Week</div></div>' +
-        '<div class="detail-stat"><div class="stat-num">' + monthCount + '</div><div class="stat-lbl">This Month</div></div>' +
-        '<div class="detail-stat"><div class="stat-num">' + r.remakeCount + '</div><div class="stat-lbl">Remake #</div></div>' +
-        '</div>' +
-        '<div class="detail-grid">' +
-        '<div class="detail-field"><p class="d-label">Reason</p><p class="d-value">' + escapeHtml(r.reason) + '</p></div>' +
-        '<div class="detail-field"><p class="d-label">Submitted By</p><p class="d-value">' + escapeHtml(r.uid || '') + '</p></div>' +
-        '<div class="detail-field"><p class="d-label">Remake Optician</p><p class="d-value">' + escapeHtml(r.employeeRemake || 'N/A') + '</p></div>' +
-        '<div class="detail-field"><p class="d-label">Original Optician</p><p class="d-value">' + escapeHtml(r.employeeOriginal || 'N/A') + '</p></div>' +
-        '<div class="detail-field"><p class="d-label">Remake Date</p><p class="d-value">' + formatDateLong(r.dateRemake) + '</p></div>' +
-        '<div class="detail-field"><p class="d-label">Original Date</p><p class="d-value">' + formatDateLong(r.dateOriginal) + '</p></div>' +
-        (r.labType ? '<div class="detail-field"><p class="d-label">Lab Type</p><p class="d-value">' + escapeHtml(r.labType) + '</p></div>' : '') +
-        (r.doctorName ? '<div class="detail-field"><p class="d-label">Doctor</p><p class="d-value">' + escapeHtml(r.doctorName) + '</p></div>' : '') +
-        (r.managerAck ? '<div class="detail-field"><p class="d-label">Manager</p><p class="d-value">&#x2705; Acknowledged</p></div>' : '') +
-        '</div>' +
-        (r.labNotes ? '<div class="detail-notes"><p class="d-label">Lab Notes</p><p class="d-value">' + escapeHtml(r.labNotes) + '</p></div>' : '') +
+        '<p><strong>Reason:</strong> ' + escapeHtml(r.reason) + '</p>' +
+        '<p><strong>Optician:</strong> ' + escapeHtml(r.employeeRemake || "N/A") + '</p>' +
+        '<p><strong>Date:</strong> ' + escapeHtml(r.dateRemake) + '</p>' +
+        '<p><strong>Notes:</strong> ' + escapeHtml(r.labNotes || "None") + '</p>' +
         '</div>';
-
       var overlay = document.getElementById('detail-overlay');
       overlay.innerHTML = html;
       overlay.classList.add('open');
@@ -898,20 +744,14 @@
       document.getElementById('detail-overlay').classList.remove('open');
     }
 
-    // ==================== Toast ====================
     function showToast(msg) {
       var t = document.createElement('div');
       t.textContent = msg;
-      t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#00C853;color:#fff;padding:0.75rem 1.5rem;border-radius:12px;font-weight:600;font-size:15px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);opacity:0;transition:opacity 0.3s;';
+      t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#00C853;color:#fff;padding:0.75rem 1.5rem;border-radius:12px;z-index:99999;';
       document.body.appendChild(t);
-      requestAnimationFrame(function () { t.style.opacity = '1'; });
-      setTimeout(function () {
-        t.style.opacity = '0';
-        setTimeout(function () { t.remove(); }, 300);
-      }, 2000);
+      setTimeout(function () { t.remove(); }, 2000);
     }
 
-    // ==================== Helpers ====================
     function escapeHtml(str) {
       if (!str) return '';
       var div = document.createElement('div');
@@ -924,23 +764,6 @@
       var d = new Date(dateStr + 'T00:00:00');
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
-
-    function formatDateLong(dateStr) {
-      if (!dateStr) return '';
-      var d = new Date(dateStr + 'T00:00:00');
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function formatDateSlash(dateStr) {
-      if (!dateStr) return '';
-      var d = new Date(dateStr + 'T00:00:00');
-      var m = String(d.getMonth() + 1).padStart(2, '0');
-      var day = String(d.getDate()).padStart(2, '0');
-      var y = String(d.getFullYear()).slice(2);
-      return m + '/' + day + '/' + y;
-    }
   </script>
-
 </body>
-
 </html>
